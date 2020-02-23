@@ -17,8 +17,8 @@
 
 set -ux
 
-while sleep 2 ; do
-	tail /dev/zero &
-	PID=$!
-	echo 1000 > /proc/"$PID"/oom_score_adj || exit 1
+while sleep 2; do
+  tail /dev/zero &
+  PID=$!
+  echo 1000 >/proc/"$PID"/oom_score_adj || exit 1
 done
