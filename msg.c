@@ -79,7 +79,7 @@ term_kill_tuple_t parse_term_kill_tuple(char* optarg, long upper_limit)
     // Arbitrary limit of 100 bytes to prevent snprintf truncation
     if (strlen(optarg) > 100) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "argument too long (%d bytes)\n", (int)strlen(optarg));
+            "argument too long (%d bytes)\n", (int)strlen(optarg));
         return tuple;
     }
 
@@ -93,18 +93,18 @@ term_kill_tuple_t parse_term_kill_tuple(char* optarg, long upper_limit)
                 continue;
             }
             snprintf(tuple.err, sizeof(tuple.err),
-                     "found multiple ','\n");
+                "found multiple ','\n");
             return tuple;
         }
         snprintf(tuple.err, sizeof(tuple.err),
-                 "found non-digit '%c'\n", optarg[i]);
+            "found non-digit '%c'\n", optarg[i]);
         return tuple;
     }
 
     n = sscanf(optarg, "%ld,%ld", &tuple.term, &tuple.kill);
     if (n == 0) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "could not parse '%s'\n", optarg);
+            "could not parse '%s'\n", optarg);
         return tuple;
     }
     // User passed only the SIGTERM value: the SIGKILL value is calculated as
@@ -115,28 +115,28 @@ term_kill_tuple_t parse_term_kill_tuple(char* optarg, long upper_limit)
     // Would setting SIGTERM below SIGKILL ever make sense?
     if (tuple.term < tuple.kill) {
         warn("warning: SIGTERM value %ld is below SIGKILL value %ld, setting SIGTERM = SIGKILL = %ld\n",
-             tuple.term, tuple.kill, tuple.kill);
+            tuple.term, tuple.kill, tuple.kill);
         tuple.term = tuple.kill;
     }
     // Sanity checks
     if (tuple.term < 0) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "negative SIGTERM value in '%s'\n", optarg);
+            "negative SIGTERM value in '%s'\n", optarg);
         return tuple;
     }
     if (tuple.term > upper_limit) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "SIGTERM value %ld exceeds limit %ld\n", tuple.term, upper_limit);
+            "SIGTERM value %ld exceeds limit %ld\n", tuple.term, upper_limit);
         return tuple;
     }
     if (tuple.kill < 0) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "negative SIGKILL value in '%s'\n", optarg);
+            "negative SIGKILL value in '%s'\n", optarg);
         return tuple;
     }
     if (tuple.kill == 0 && tuple.term == 0) {
         snprintf(tuple.err, sizeof(tuple.err),
-                 "both SIGTERM and SIGKILL values are zero\n");
+            "both SIGTERM and SIGKILL values are zero\n");
         return tuple;
     }
     return tuple;
