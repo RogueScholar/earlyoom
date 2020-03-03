@@ -235,7 +235,7 @@ void kill_largest_process(const poll_loop_args_t args, int sig)
     if (victim.pid <= 0) {
         warn("Could not find a process to kill. Sleeping 1 second.\n");
         maybe_notify(args.notif_command,
-            "-i dialog-error 'earlyoom' 'Error: Could not find a process to kill. Sleeping 1 second.'");
+                     "-i dialog-error 'earlyoom' 'Error: Could not find a process to kill. Sleeping 1 second.'");
         sleep(1);
         return;
     }
@@ -257,7 +257,7 @@ void kill_largest_process(const poll_loop_args_t args, int sig)
     // sig == 0 is used as a self-test during startup. Don't notifiy the user.
     if (sig != 0 || enable_debug) {
         warn("sending %s to process %d uid %d \"%s\": badness %d, VmRSS %lu MiB\n",
-            sig_name, victim.pid, victim.uid, victim.name, victim.badness, victim.VmRSSkiB / 1024);
+             sig_name, victim.pid, victim.uid, victim.name, victim.badness, victim.VmRSSkiB / 1024);
     }
 
     int res = kill_wait(args, victim.pid, sig);
@@ -270,7 +270,7 @@ void kill_largest_process(const poll_loop_args_t args, int sig)
         // maybe_notify() calls system(). We must sanitize the strings we pass.
         sanitize(victim.name);
         snprintf(notif_args, sizeof(notif_args),
-            "-i dialog-warning 'earlyoom' 'Low memory! Killing process %d %s'", victim.pid, victim.name);
+                 "-i dialog-warning 'earlyoom' 'Low memory! Killing process %d %s'", victim.pid, victim.name);
         maybe_notify(args.notif_command, notif_args);
     }
 
@@ -281,7 +281,7 @@ void kill_largest_process(const poll_loop_args_t args, int sig)
     if (res != 0) {
         warn("kill failed: %s\n", strerror(saved_errno));
         maybe_notify(args.notif_command,
-            "-i dialog-error 'earlyoom' 'Error: Failed to kill process'");
+                     "-i dialog-error 'earlyoom' 'Error: Failed to kill process'");
         // Killing the process may have failed because we are not running as root.
         // In that case, trying again in 100ms will just yield the same error.
         // Throttle ourselves to not spam the log.
