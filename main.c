@@ -187,32 +187,32 @@ int main(int argc, char* argv[])
             break;
         case 'h':
             fprintf(stderr,
-                "Usage: %s [OPTION]...\n"
-                "\n"
-                "  -m PERCENT[,KILL_PERCENT] set available memory minimum to PERCENT of total\n"
-                "                            (default 10 %%).\n"
-                "                            earlyoom sends SIGTERM once below PERCENT, then\n"
-                "                            SIGKILL once below KILL_PERCENT (default PERCENT/2).\n"
-                "  -s PERCENT[,KILL_PERCENT] set free swap minimum to PERCENT of total (default\n"
-                "                            10 %%).\n"
-                "                            Note: both memory and swap must be below minimum for\n"
-                "                            earlyoom to act.\n"
-                "  -M SIZE[,KILL_SIZE]       set available memory minimum to SIZE KiB\n"
-                "  -S SIZE[,KILL_SIZE]       set free swap minimum to SIZE KiB\n"
-                "  -i                        user-space oom killer should ignore positive\n"
-                "                            oom_score_adj values\n"
-                "  -n                        enable d-bus notifications\n"
-                "  -d                        enable debugging messages\n"
-                "  -v                        print version information and exit\n"
-                "  -r INTERVAL               memory report interval in seconds (default 1), set\n"
-                "                            to 0 to disable completely\n"
-                "  -p                        set niceness of earlyoom to -20 and oom_score_adj to\n"
-                "                            -100\n"
-                "  --prefer REGEX            prefer to kill processes matching REGEX\n"
-                "  --avoid REGEX             avoid killing processes matching REGEX\n"
-                "  --dryrun                  dry run (do not kill any processes)\n"
-                "  -h, --help                this help text\n",
-                argv[0]);
+                    "Usage: %s [OPTION]...\n"
+                    "\n"
+                    "  -m PERCENT[,KILL_PERCENT] set available memory minimum to PERCENT of total\n"
+                    "                            (default 10 %%).\n"
+                    "                            earlyoom sends SIGTERM once below PERCENT, then\n"
+                    "                            SIGKILL once below KILL_PERCENT (default PERCENT/2).\n"
+                    "  -s PERCENT[,KILL_PERCENT] set free swap minimum to PERCENT of total (default\n"
+                    "                            10 %%).\n"
+                    "                            Note: both memory and swap must be below minimum for\n"
+                    "                            earlyoom to act.\n"
+                    "  -M SIZE[,KILL_SIZE]       set available memory minimum to SIZE KiB\n"
+                    "  -S SIZE[,KILL_SIZE]       set free swap minimum to SIZE KiB\n"
+                    "  -i                        user-space oom killer should ignore positive\n"
+                    "                            oom_score_adj values\n"
+                    "  -n                        enable d-bus notifications\n"
+                    "  -d                        enable debugging messages\n"
+                    "  -v                        print version information and exit\n"
+                    "  -r INTERVAL               memory report interval in seconds (default 1), set\n"
+                    "                            to 0 to disable completely\n"
+                    "  -p                        set niceness of earlyoom to -20 and oom_score_adj to\n"
+                    "                            -100\n"
+                    "  --prefer REGEX            prefer to kill processes matching REGEX\n"
+                    "  --avoid REGEX             avoid killing processes matching REGEX\n"
+                    "  --dryrun                  dry run (do not kill any processes)\n"
+                    "  -h, --help                this help text\n",
+                    argv[0]);
             exit(0);
         case '?':
             fprintf(stderr, "Try 'earlyoom --help' for more information.\n");
@@ -283,11 +283,11 @@ int main(int argc, char* argv[])
 
     // Print memory limits
     fprintf(stderr, "mem total: %4lld MiB, swap total: %4lld MiB\n",
-        m.MemTotalMiB, m.SwapTotalMiB);
+            m.MemTotalMiB, m.SwapTotalMiB);
     fprintf(stderr, "sending SIGTERM when mem <= " PRIPCT " and swap <= " PRIPCT ",\n",
-        args.mem_term_percent, args.swap_term_percent);
+            args.mem_term_percent, args.swap_term_percent);
     fprintf(stderr, "        SIGKILL when mem <= " PRIPCT " and swap <= " PRIPCT "\n",
-        args.mem_kill_percent, args.swap_kill_percent);
+            args.mem_kill_percent, args.swap_kill_percent);
 
     /* Dry-run oom kill to make sure stack grows to maximum size before
      * calling mlockall()
@@ -379,12 +379,12 @@ static void poll_loop(const poll_loop_args_t* args)
         if (m.MemAvailablePercent <= args->mem_kill_percent && m.SwapFreePercent <= args->swap_kill_percent) {
             print_mem_stats(warn, m);
             warn("low memory! at or below SIGKILL limits: mem " PRIPCT ", swap " PRIPCT "\n",
-                args->mem_kill_percent, args->swap_kill_percent);
+                 args->mem_kill_percent, args->swap_kill_percent);
             sig = SIGKILL;
         } else if (m.MemAvailablePercent <= args->mem_term_percent && m.SwapFreePercent <= args->swap_term_percent) {
             print_mem_stats(warn, m);
             warn("low memory! at or below SIGTERM limits: mem " PRIPCT ", swap " PRIPCT "\n",
-                args->mem_term_percent, args->swap_term_percent);
+                 args->mem_term_percent, args->swap_term_percent);
             sig = SIGTERM;
         }
         if (sig) {

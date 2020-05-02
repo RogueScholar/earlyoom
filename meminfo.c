@@ -96,7 +96,7 @@ meminfo_t parse_meminfo()
         MemAvailable = available_guesstimate(buf);
         if (guesstimate_warned == 0) {
             fprintf(stderr, "Warning: Your kernel does not provide MemAvailable data (needs 3.14+)\n"
-                            "         Falling back to guesstimate\n");
+                    "         Falling back to guesstimate\n");
             guesstimate_warned = 1;
         }
     }
@@ -276,10 +276,10 @@ long long get_vm_rss_kib(int pid)
 void print_mem_stats(int __attribute__((format(printf, 1, 2))) (*out_func)(const char* fmt, ...), const meminfo_t m)
 {
     out_func("mem avail: %5lld of %5lld MiB (" PRIPCT "), swap free: %4lld of %4lld MiB (" PRIPCT ")\n",
-        m.MemAvailableMiB,
-        m.MemTotalMiB,
-        m.MemAvailablePercent,
-        m.SwapFreeMiB,
-        m.SwapTotalMiB,
-        m.SwapFreePercent);
+             m.MemAvailableMiB,
+             m.MemTotalMiB,
+             m.MemAvailablePercent,
+             m.SwapFreeMiB,
+             m.SwapTotalMiB,
+             m.SwapFreePercent);
 }

@@ -79,22 +79,22 @@ static double parse_part(term_kill_tuple_t* tuple, const char* part, long long u
     double val = strtod(part, &endptr);
     if (*endptr != '\0') {
         snprintf(tuple->err, sizeof(tuple->err),
-            "trailing garbage '%s'", endptr);
+                 "trailing garbage '%s'", endptr);
         return 0;
     }
     if (errno) {
         snprintf(tuple->err, sizeof(tuple->err),
-            "converson error: %s", strerror(errno));
+                 "converson error: %s", strerror(errno));
         return 0;
     }
     if (val > (double)upper_limit) {
         snprintf(tuple->err, sizeof(tuple->err),
-            "value %lf exceeds limit %lld", val, upper_limit);
+                 "value %lf exceeds limit %lld", val, upper_limit);
         return 0;
     }
     if (val < 0) {
         snprintf(tuple->err, sizeof(tuple->err),
-            "value %lf below zero", val);
+                 "value %lf below zero", val);
         return 0;
     }
     return val;
@@ -110,7 +110,7 @@ term_kill_tuple_t parse_term_kill_tuple(const char* optarg, long long upper_limi
 
     if (strlen(optarg) > (sizeof(buf) - 1)) {
         snprintf(tuple.err, sizeof(tuple.err),
-            "argument too long (%zu bytes)", strlen(optarg));
+                 "argument too long (%zu bytes)", strlen(optarg));
         return tuple;
     }
     strncpy(buf, optarg, sizeof(buf) - 1);
@@ -143,13 +143,13 @@ term_kill_tuple_t parse_term_kill_tuple(const char* optarg, long long upper_limi
     // Setting term < kill makes no sense
     if (tuple.term < tuple.kill) {
         warn("warning: SIGTERM value %.2lf is below SIGKILL value %.2lf, setting SIGTERM = SIGKILL = %.2lf\n",
-            tuple.term, tuple.kill, tuple.kill);
+             tuple.term, tuple.kill, tuple.kill);
         tuple.term = tuple.kill;
     }
     // Sanity checks
     if (tuple.kill == 0 && tuple.term == 0) {
         snprintf(tuple.err, sizeof(tuple.err),
-            "both SIGTERM and SIGKILL values are zero");
+                 "both SIGTERM and SIGKILL values are zero");
         return tuple;
     }
     return tuple;

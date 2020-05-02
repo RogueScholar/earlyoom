@@ -56,7 +56,7 @@ static void notify(const char* summary, const char* body)
     // Complete command line looks like this:
     // dbus-send --system / net.nuetzlich.SystemNotifications.Notify 'string:summary text' 'string:and body text'
     execl("/usr/bin/dbus-send", "dbus-send", "--system", "/", "net.nuetzlich.SystemNotifications.Notify",
-        summary2, body2, NULL);
+          summary2, body2, NULL);
     warn("notify: exec failed: %s\n", strerror(errno));
     exit(1);
 }
@@ -246,7 +246,7 @@ void kill_largest_process(const poll_loop_args_t* args, int sig)
 
     if (candidates <= 1 && victim.pid == getpid()) {
         warn("Only found myself (pid %d) in /proc. Do you use hidpid? See https://github.com/rfjakob/earlyoom/wiki/proc-hidepid\n",
-            victim.pid);
+             victim.pid);
         victim.pid = 0;
     }
 
@@ -276,7 +276,7 @@ void kill_largest_process(const poll_loop_args_t* args, int sig)
     // sig == 0 is used as a self-test during startup. Don't notifiy the user.
     if (sig != 0 || enable_debug) {
         warn("sending %s to process %d uid %d \"%s\": badness %d, VmRSS %lld MiB\n",
-            sig_name, victim.pid, victim.uid, victim.name, victim.badness, victim.VmRSSkiB / 1024);
+             sig_name, victim.pid, victim.uid, victim.name, victim.badness, victim.VmRSSkiB / 1024);
     }
 
     int res = kill_wait(args, victim.pid, sig);
@@ -287,7 +287,7 @@ void kill_largest_process(const poll_loop_args_t* args, int sig)
     if (sig != 0) {
         char notif_args[PATH_MAX + 1000];
         snprintf(notif_args, sizeof(notif_args),
-            "Low memory! Killing process %d %s", victim.pid, victim.name);
+                 "Low memory! Killing process %d %s", victim.pid, victim.name);
         if (args->notify) {
             notify("earlyoom", notif_args);
         }
