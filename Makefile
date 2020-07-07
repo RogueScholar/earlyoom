@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --dirty 2> /dev/null)
-CFLAGS += -Wall -Wextra -Wformat-security -DVERSION=\"$(VERSION)\" -g -fstack-protector-all -std=gnu99
+CFLAGS += -Wall -Wextra -Wformat-security -Wconversion -DVERSION=\"$(VERSION)\" -g -fstack-protector-all -std=gnu99
 
 DESTDIR ?=
 PREFIX ?= /usr/local
@@ -17,7 +17,7 @@ endif
 all: earlyoom earlyoom.1 earlyoom.service
 
 earlyoom: $(wildcard *.c *.h) Makefile
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(wildcard *.c)
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ $(wildcard *.c)
 
 earlyoom.1: MANPAGE.md
 ifdef PANDOC
@@ -59,7 +59,7 @@ endif
 
 earlyoom.1.gz: earlyoom.1
 ifdef PANDOC
-	gzip -f -k $<
+	gzip -f -k -n $<
 endif
 
 uninstall: uninstall-bin uninstall-man
@@ -78,7 +78,7 @@ uninstall-bin:
 
 # Depends on earlyoom compilation to make sure the syntax is ok.
 format: earlyoom
-	clang-format -i *.h *.c
+	clang-format --style=WebKit -i *.h *.c
 	go fmt .
 
 test: earlyoom
