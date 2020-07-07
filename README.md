@@ -113,8 +113,6 @@ For Debian 10+ and Ubuntu 18.04+, there's a
 
 ```bash
 sudo apt install earlyoom
-sudo systemctl enable earlyoom
-sudo systemctl start earlyoom
 ```
 
 For Fedora and RHEL 8 with EPEL, there's a
