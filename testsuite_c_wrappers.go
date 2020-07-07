@@ -11,20 +11,14 @@ import (
 // #include "msg.h"
 import "C"
 
-func sanitize(s string) string {
-	cs := C.CString(s)
-	C.sanitize(cs)
-	return C.GoString(cs)
-}
-
-func parse_term_kill_tuple(optarg string, upper_limit int) (error, int, int) {
+func parse_term_kill_tuple(optarg string, upper_limit int) (error, float64, float64) {
 	cs := C.CString(optarg)
-	tuple := C.parse_term_kill_tuple(cs, C.long(upper_limit))
+	tuple := C.parse_term_kill_tuple(cs, C.longlong(upper_limit))
 	errmsg := C.GoString(&(tuple.err[0]))
 	if len(errmsg) > 0 {
 		return fmt.Errorf(errmsg), 0, 0
 	}
-	return nil, int(tuple.term), int(tuple.kill)
+	return nil, float64(tuple.term), float64(tuple.kill)
 }
 
 func is_alive(pid int) bool {
@@ -44,7 +38,7 @@ func parse_meminfo() C.meminfo_t {
 
 func kill_largest_process() {
 	var args C.poll_loop_args_t
-	C.kill_largest_process(args, 0)
+	C.kill_largest_process(&args, 0)
 }
 
 func get_oom_score(pid int) int {
