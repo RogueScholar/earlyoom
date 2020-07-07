@@ -166,30 +166,12 @@ systemctl status earlyoom
 
 ### Notifications
 
-The command-line flag `-n` enables notifications via `notify-send`. However, if
-earlyoom is being run by a user other than the one running your desktop
-environment (e.g. if it's run as a service or cron job) then `notify-send` will
-not work on its own, as DBUS, X, and/or display information may required.
+Since version 1.6, earlyoom can send notifications about killed processes via
+the system d-bus. Pass `-n` to enable them.
 
-In this case, you can use `-N` to supply environment variables or another
-command. The exact value will vary depending on your desktop environment, but
-the following command may work. `YOUR_USER` should be replaced with output of
-`whoami` and `YOUR_USER_ID` with output of `echo $UID`. Your `DISPLAY` value may
-also be different (check `echo $DISPLAY`).
-
-```bash
-earlyoom -N 'sudo -u YOUR_USER DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/YOUR_USER_ID/bus notify-send'
-```
-
-Other options are discussed in
-[this thread](https://unix.stackexchange.com/questions/111188/using-notify-send-with-cron).
-
-Note that if you choose to use a command other than `notify-send`, it must
-support the same arguments. Example invocation earlyoom uses:
-
-```bash
-NOTIFY_COMMAND -i dialog-warning 'notif title' 'notif text'
-```
+To actually see the notifications in your GUI session, you need to have
+[systembus-notify](https://github.com/rfjakob/systembus-notify) running as your
+user.
 
 ### Preferred Processes
 
@@ -271,6 +253,28 @@ to accept
 
 ## Changelog
 
+- 1.6, 2020-04-11
+
+  - Replace old `notify-send` GUI notification logic with `dbus-send` /
+    [systembus-notify](https://github.com/rfjakob/systembus-notify)
+    ([#183](https://github.com/rfjakob/earlyoom/issues/183))
+    - `-n`/`-N` now enables the new logic
+    - You need to have
+      [systembus-notify](https://github.com/rfjakob/systembus-notify) running in
+      your GUI session for notifications for work
+  - Handle `/proc` mounted with
+    [hidepid](https://github.com/rfjakob/earlyoom/wiki/proc-hidepid) gracefully
+    ([issue #184](https://github.com/rfjakob/earlyoom/issues/184))
+
+- v1.5, 2020-03-22
+
+  - `-p`: set oom_score_adj to `-100` instead of `-1000`
+    ([#170](https://github.com/rfjakob/earlyoom/issues/170))
+  - Allow using **both** `-M` and `-m`, and `-S` and `-s`. The lower value
+    (converted to percentages) will be used.
+  - Set memory report interval in `earlyoom.default` to 1 hour instead of 1
+    minute ([#177](https://github.com/rfjakob/earlyoom/issues/177))
+
 - v1.4, 2020-03-01
 
   - Make victim selection logic 50% faster by lazy-loading process attributes
@@ -325,8 +329,12 @@ to accept
   - Send the GUI notification _after_ killing, not before
     ([issue #73](https://github.com/rfjakob/earlyoom/issues/73))
   - Accept `--help` in addition to `-h`
-  - Fix wrong process name displayed in kill notification
-    ([commit](https://github.com/rfjakob/earlyoom/commit/1466e9c8f7997108758d9585442a96c6806c040e))
+  - Fix wrong process name in log and in kill notification
+    ([commit 1](https://github.com/rfjakob/earlyoom/commit/7634c5b66dd7e9b88c6ebf0496c8777f3c4b3cc1),
+    [commit 2](https://github.com/rfjakob/earlyoom/commit/15679a3b768ea2df9b13a7d9b0c1e30bd1a450e6),
+    [issue #52](https://github.com/rfjakob/earlyoom/issues/52),
+    [issue #65](https://github.com/rfjakob/earlyoom/issues/65),
+    [issue #194](https://github.com/rfjakob/earlyoom/issues/194))
   - Fix possible division by zero with `-S`
     ([commit](https://github.com/rfjakob/earlyoom/commit/a0c4b26dfef8b38ef81c7b0b907442f344a3e115))
 - v1.0, 2018-01-28

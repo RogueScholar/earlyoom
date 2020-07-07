@@ -1,23 +1,20 @@
 # oomstat
 
-oomstat is a very simple tool that prints available
-memory, free swap and memory pressure (PSI) information
-every 100ms.
+oomstat is a very simple tool that prints available memory, free swap and memory
+pressure (PSI) information every 100ms.
 
-Example output with `tail /dev/zero` started in the
-background is pasted below, more examples are available
-in the text files in this directory.
-
+Example output with `tail /dev/zero` started in the background is pasted below,
+more examples are available in the text files in this directory.
 
 ```
 $ ./oomstat
 
-./oomstat 
-[sudo] password for jakob: 
+./oomstat
+[sudo] password for jakob:
      | /proc/meminfo     | /proc/pressure/memory
 Time | MemAvail SwapFree | some avg10 full avg10
    s |      MiB      MiB |    %     %    %     %
-     -                   -                      
+     -                   -
  [...]
  1.5 |    20251        0 |    0     6    0     3
  1.6 |    20148        0 |    0     6    0     3

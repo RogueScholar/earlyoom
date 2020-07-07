@@ -58,17 +58,19 @@ SIGKILL.
 
 As an alternative to specifying a percentage of total memory, `-M` sets the
 available memory minimum to SIZE KiB. The value is internally converted to a
-percentage. You can only use **either** `-m` **or** `-M`.
+percentage. If you pass both `-M` and `-m`, the lower value is used. Example:
+Reserve 10% of RAM but at most 1 GiB:
 
     earlyoom -m 10 -M 1048576
 
-earlyoom sends SIGKILL if at or below KILL_SIZE (default SIZE/2), otherwise SIGTERM.
+earlyoom sends SIGKILL if at or below KILL_SIZE (default SIZE/2), otherwise
+SIGTERM.
 
 #### -S SIZE[,KILL_SIZE]
 
 As an alternative to specifying a percentage of total swap, `-S` sets the free
-swap minimum to SIZE KiB. The value is internally converted to a percentage. You
-can only use **either** `-s` **or** `-S`.
+swap minimum to SIZE KiB. The value is internally converted to a percentage. If
+you pass both `-S` and `-s`, the lower value is used.
 
 Send SIGKILL if at or below KILL_SIZE (default SIZE/2), otherwise SIGTERM.
 
@@ -90,15 +92,26 @@ print version information and exit
 
 #### -r INTERVAL
 
-memory report interval in seconds (default 1), set to 0 to disable completely.
-With earlyoom v1.2 and higher, floating point numbers are accepted. Due to the
-adaptive poll rate, when there is a lot of free memory, the actual interval may
-be up to 1 second longer than the setting.
+Time between printing periodic memory reports, in seconds (default 1.0). A
+memory report looks like this:
+
+    mem avail: 21790 of 23909 MiB (91.14%), swap free:    0 of    0 MiB ( 0.00%)
+
+Set to 3600 to print a report every hour, to 86400 to print once a day etc. Set
+to 0 to disable printing periodic memory reports. Free memory monitoring and
+low-memory killing runs independently of this option at an adaptive poll rate
+that only depends on free memory. Due to the adaptive poll rate, when there is a
+lot of free memory, the actual interval may be up to 1 second longer than the
+setting.
 
 #### -p
 
 Increase earlyoom's priority: set niceness of earlyoom to -20 and oom_score_adj
-to -1000
+to -100
+
+#### -n
+
+Enable notifications via d-bus.
 
 #### \-\-prefer REGEX
 
