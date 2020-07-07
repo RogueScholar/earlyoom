@@ -124,8 +124,7 @@ sudo systemctl enable --now earlyoom
 ```
 
 For Arch Linux, there's an
-[AUR package](https://aur.archlinux.org/packages/earlyoom/). Use your favorite
-AUR helper. For example:
+[Arch Linux package](https://www.archlinux.org/packages/community/x86_64/earlyoom/):
 
 ```bash
 sudo pacman -S earlyoom
