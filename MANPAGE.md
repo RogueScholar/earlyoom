@@ -109,6 +109,7 @@ prefer killing processes matching REGEX (adds 300 to oom_score)
 avoid killing processes matching REGEX (subtracts 300 from oom_score)
 
 #### \-\-dryrun
+
 dry run (do not kill any processes)
 
 #### -h, \-\-help
