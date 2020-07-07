@@ -2,41 +2,24 @@ package earlyoom_testsuite
 
 import (
 	"os"
+	"strings"
+	"syscall"
 	"testing"
 	"unicode/utf8"
 )
 
-func TestSanitize(t *testing.T) {
-	type testCase struct {
-		in  string
-		out string
-	}
-	tcs := []testCase{
-		{in: "", out: ""},
-		{in: "foo", out: "foo"},
-		{in: "foo bar", out: "foo_bar"},
-		{in: "foo\\", out: "foo_"},
-		{in: "foo234", out: "foo234"},
-		{in: "foo$", out: "foo_"},
-		{in: "foo\"bar", out: "foo_bar"},
-		{in: "foo\x00bar", out: "foo"},
-		{in: "foo!§$%&/()=?`'bar", out: "foo_____________bar"},
-	}
-	for _, tc := range tcs {
-		out := sanitize(tc.in)
-		if out != tc.out {
-			t.Errorf("wrong result: in=%q want=%q have=%q ", tc.in, tc.out, out)
-		}
-	}
-}
+// On Fedora 31 (Linux 5.4), /proc/sys/kernel/pid_max = 4194304.
+// It's very unlikely that INT32_MAX will be a valid pid anytime soon.
+const INT32_MAX = 2147483647
+const ENOENT = 2
 
 func TestParseTuple(t *testing.T) {
 	tcs := []struct {
 		arg        string
 		limit      int
 		shouldFail bool
-		term       int
-		kill       int
+		term       float64
+		kill       float64
 	}{
 		{arg: "2,1", limit: 100, term: 2, kill: 1},
 		{arg: "20,10", limit: 100, term: 20, kill: 10},
@@ -49,10 +32,23 @@ func TestParseTuple(t *testing.T) {
 		{arg: "5,0", limit: 100, term: 5, kill: 0},
 		{arg: "5,9", limit: 100, term: 9, kill: 9},
 		{arg: "0,5", limit: 100, term: 5, kill: 5},
-		// SIGTERM value is set to zero when it is below SIGKILL
+		// TERM value is set to KILL value when it is below TERM
 		{arg: "4,5", limit: 100, term: 5, kill: 5},
 		{arg: "0", limit: 100, shouldFail: true},
 		{arg: "0,0", limit: 100, shouldFail: true},
+		// Floating point values
+		{arg: "4.0,2.0", limit: 100, term: 4, kill: 2},
+		{arg: "4,0,2,0", limit: 100, shouldFail: true},
+		{arg: "3.1415,2.7182", limit: 100, term: 3.1415, kill: 2.7182},
+		{arg: "3.1415", limit: 100, term: 3.1415, kill: 3.1415 / 2},
+		{arg: "1." + strings.Repeat("123", 100), limit: 100, shouldFail: true},
+		// Leading garbage
+		{arg: "x1,x2", limit: 100, shouldFail: true},
+		{arg: "1,x2", limit: 100, shouldFail: true},
+		// Trailing garbage
+		{arg: "1x,2x", limit: 100, shouldFail: true},
+		{arg: "1.1.", limit: 100, shouldFail: true},
+		{arg: "1,2..", limit: 100, shouldFail: true},
 	}
 	for _, tc := range tcs {
 		err, term, kill := parse_term_kill_tuple(tc.arg, tc.limit)
@@ -62,10 +58,10 @@ func TestParseTuple(t *testing.T) {
 			continue
 		}
 		if term != tc.term {
-			t.Errorf("case %v: term=%d", tc, term)
+			t.Errorf("case %v: term=%v", tc, term)
 		}
 		if kill != tc.kill {
-			t.Errorf("case %v: kill=%d", tc, kill)
+			t.Errorf("case %v: kill=%v", tc, kill)
 		}
 	}
 }
@@ -104,19 +100,98 @@ func Test_fix_truncated_utf8(t *testing.T) {
 	}
 }
 
-func Test_get_process_stats(t *testing.T) {
+func Test_get_vm_rss_kib(t *testing.T) {
 	pid := os.Getpid()
-	st := get_process_stats(pid)
-	if int(st.exited) == 1 {
-		t.Fatal("we have obviously not exited")
+	rss := get_vm_rss_kib(pid)
+	if rss <= 0 {
+		t.Fatalf("our rss can't be <= 0, but we got %d", rss)
 	}
-	if int(st.VmRSSkiB) == 0 {
-		t.Fatal("our rss can't be zero")
+	// Error case
+	res := get_vm_rss_kib(INT32_MAX)
+	if res != -ENOENT {
+		t.Fail()
+	}
+}
+
+func Test_get_oom_score(t *testing.T) {
+	res := get_oom_score(os.Getpid())
+	// On systems with a lot of RAM, our process may actually have a score of
+	// zero. At least check that get_oom_score did not return an error.
+	if res < 0 {
+		t.Error(res)
+	}
+	res = get_oom_score(INT32_MAX)
+	if res != -ENOENT {
+		t.Errorf("want %d, but have %d", syscall.ENOENT, res)
+	}
+}
+
+func Test_get_comm(t *testing.T) {
+	pid := os.Getpid()
+	res, comm := get_comm(pid)
+	if res != 0 {
+		t.Fatalf("error %d", res)
+	}
+	if len(comm) == 0 {
+		t.Fatalf("empty process name %q", comm)
+	}
+	t.Logf("process name %q", comm)
+	// Error case
+	res, comm = get_comm(INT32_MAX)
+	if res != -ENOENT {
+		t.Fail()
+	}
+	if comm != "" {
+		t.Fail()
 	}
 }
 
 func Benchmark_parse_meminfo(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		parse_meminfo()
+	}
+}
+
+func Benchmark_kill_largest_process(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		kill_largest_process()
+	}
+}
+
+func Benchmark_get_oom_score(b *testing.B) {
+	pid := os.Getpid()
+	for n := 0; n < b.N; n++ {
+		get_oom_score(pid)
+	}
+}
+
+func Benchmark_get_oom_score_adj(b *testing.B) {
+	pid := os.Getpid()
+	for n := 0; n < b.N; n++ {
+		var out int
+		get_oom_score_adj(pid, &out)
+	}
+}
+
+func Benchmark_get_vm_rss_kib(b *testing.B) {
+	pid := os.Getpid()
+	for n := 0; n < b.N; n++ {
+		rss := get_vm_rss_kib(pid)
+		if rss <= 0 {
+			b.Fatalf("rss <= 0: %d", rss)
+		}
+	}
+}
+
+func Benchmark_get_comm(b *testing.B) {
+	pid := os.Getpid()
+	for n := 0; n < b.N; n++ {
+		res, comm := get_comm(pid)
+		if len(comm) == 0 {
+			b.Fatalf("empty process name %q", comm)
+		}
+		if res != 0 {
+			b.Fatalf("error %d", res)
+		}
 	}
 }

@@ -110,8 +110,6 @@ _Note that for systems with SELinux disabled (Ubuntu 19.04, Debian 9 ...) chcon 
 For Debian 10+ and Ubuntu 18.04+, there's a [Debian package](https://packages.debian.org/search?keywords=earlyoom):
 ```bash
 sudo apt install earlyoom
-sudo systemctl enable earlyoom
-sudo systemctl start earlyoom
 ```
 
 For Fedora and RHEL 8 with EPEL, there's a [Fedora package](https://apps.fedoraproject.org/packages/earlyoom):
@@ -120,12 +118,13 @@ sudo dnf install earlyoom
 sudo systemctl enable --now earlyoom
 ```
 
-For Arch Linux, there's an [AUR package](https://aur.archlinux.org/packages/earlyoom/).
-Use your favorite AUR helper. For example:
+For Arch Linux, there's an [Arch Linux package](https://www.archlinux.org/packages/community/x86_64/earlyoom/):
 ```bash
-yay -S earlyoom
+sudo pacman -S earlyoom
 sudo systemctl enable --now earlyoom
 ```
+
+Availability in other distributions: see [repology page](https://repology.org/project/earlyoom/versions).
 
 Use
 ---
@@ -140,13 +139,14 @@ is, how much memory is available and how much swap is free.
 
 ```
 ./earlyoom
-earlyoom v1.2-10-ga8f30d7
-mem total: 7834 MiB, swap total:    0 MiB
-Sending SIGTERM when mem <= 10 % and swap <= 10 %,
+earlyoom v1.4-6-ga4021ae
+mem total: 9823 MiB, swap total: 9823 MiB
+sending SIGTERM when mem <= 10 % and swap <= 10 %,
         SIGKILL when mem <=  5 % and swap <=  5 %
-mem avail: 4667 of 7834 MiB (59 %), swap free:    0 of    0 MiB ( 0 %)
-mem avail: 4704 of 7834 MiB (60 %), swap free:    0 of    0 MiB ( 0 %)
-mem avail: 4704 of 7834 MiB (60 %), swap free:    0 of    0 MiB ( 0 %)
+Could not lock memory - continuing anyway: Cannot allocate memory
+mem avail:  5091 of  9823 MiB (51 %), swap free: 9823 of 9823 MiB (100 %)
+mem avail:  5084 of  9823 MiB (51 %), swap free: 9823 of 9823 MiB (100 %)
+mem avail:  5086 of  9823 MiB (51 %), swap free: 9823 of 9823 MiB (100 %)
 
 [...]
 ```
@@ -162,28 +162,12 @@ systemctl status earlyoom
 
 ### Notifications
 
-The command-line flag `-n` enables notifications via `notify-send`. However, if earlyoom is being
-run by a user other than the one running your desktop environment (e.g. if it's run as a service
-or cron job) then `notify-send` will not work on its own, as DBUS, X, and/or display information
-may required.
+Since version 1.6, earlyoom can send notifications about killed processes
+via the system d-bus. Pass `-n` to enable them.
 
-In this case, you can use `-N` to supply environment variables or another command. The exact value
-will vary depending on your desktop environment, but the following command may work. `YOUR_USER`
-should be replaced with output of `whoami` and `YOUR_USER_ID` with output of `echo $UID`. Your
-`DISPLAY` value may also be different (check `echo $DISPLAY`).
-
-```bash
-earlyoom -N 'sudo -u YOUR_USER DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/YOUR_USER_ID/bus notify-send'
-```
-
-Other options are discussed in [this thread](https://unix.stackexchange.com/questions/111188/using-notify-send-with-cron).
-
-Note that if you choose to use a command other than `notify-send`, it must support the same
-arguments. Example invocation earlyoom uses:
-
-```bash
-NOTIFY_COMMAND -i dialog-warning 'notif title' 'notif text'
-```
+To actually see the notifications in your GUI session, you need to have
+[systembus-notify](https://github.com/rfjakob/systembus-notify)
+running as your user.
 
 ### Preferred Processes
 
@@ -219,7 +203,7 @@ Command line options
 --------------------
 ```
 ./earlyoom -h
-earlyoom v1.3-15
+earlyoom v1.6-preview
 Usage: ./earlyoom [OPTION]...
 
   -m PERCENT[,KILL_PERCENT] set available memory minimum to PERCENT of total
@@ -234,17 +218,18 @@ Usage: ./earlyoom [OPTION]...
   -S SIZE[,KILL_SIZE]       set free swap minimum to SIZE KiB
   -i                        user-space oom killer should ignore positive
                             oom_score_adj values
-  -n                        enable notifications using "notify-send"
-  -N COMMAND                enable notifications using COMMAND
+  -n                        enable d-bus notifications
   -d                        enable debugging messages
   -v                        print version information and exit
   -r INTERVAL               memory report interval in seconds (default 1), set
                             to 0 to disable completely
   -p                        set niceness of earlyoom to -20 and oom_score_adj to
-                            -1000
+                            -100
   --prefer REGEX            prefer to kill processes matching REGEX
   --avoid REGEX             avoid killing processes matching REGEX
+  --dryrun                  dry run (do not kill any processes)
   -h, --help                this help text
+
 ```
 
 See the [man page](MANPAGE.md) for details.
@@ -258,6 +243,41 @@ accept
 
 Changelog
 ---------
+* 1.6, 2020-04-11
+  * Replace old `notify-send` GUI notification logic with
+    `dbus-send` / [systembus-notify](https://github.com/rfjakob/systembus-notify)
+    ([#183](https://github.com/rfjakob/earlyoom/issues/183))
+    * `-n`/`-N` now enables the new logic
+    * You need to have [systembus-notify](https://github.com/rfjakob/systembus-notify) running
+      in your GUI session for notifications for work
+  * Handle `/proc` mounted with
+    [hidepid](https://github.com/rfjakob/earlyoom/wiki/proc-hidepid)
+    gracefully ([issue #184](https://github.com/rfjakob/earlyoom/issues/184))
+
+* v1.5, 2020-03-22
+  * `-p`: set oom_score_adj to `-100` instead of `-1000`
+    ([#170](https://github.com/rfjakob/earlyoom/issues/170))
+  * Allow using **both** `-M` and `-m`, and `-S` and `-s`. The
+    lower value (converted to percentages) will be used.
+  * Set memory report interval in `earlyoom.default` to 1 hour
+    instead of 1 minute ([#177](https://github.com/rfjakob/earlyoom/issues/177))
+
+* v1.4, 2020-03-01
+  * Make victim selection logic 50% faster by lazy-loading process attributes
+  * Log the user id `uid` of killed processes in addition to pid and name
+  * Color debug log in light grey
+  * Code clean-up
+    * Use block-local variables where possible
+    * Introduce PATH_LEN to replace several hardcoded buffer lengths
+  * Expand testsuite (`make test`)
+  * Run `cppcheck` when available
+  * Add unit-test benchmarks (`make bench`)
+  * Drop root privileges in systemd unit file `earlyoom.service`
+
+* v1.3.1, 2020-02-27
+  * Fix spurious testsuite failure on systems with a lot of RAM
+    ([issue #156](https://github.com/rfjakob/earlyoom/issues/156))
+
 * v1.3, 2019-05-26
   * Wait for processes to actually exit when sending a signal
     * This fixes the problem that earlyoom sometimes kills more than
@@ -294,8 +314,12 @@ Changelog
   * Send the GUI notification *after* killing, not before
     ([issue #73](https://github.com/rfjakob/earlyoom/issues/73))
   * Accept `--help` in addition to `-h`
-  * Fix wrong process name displayed in kill notification
-    ([commit](https://github.com/rfjakob/earlyoom/commit/1466e9c8f7997108758d9585442a96c6806c040e))
+  * Fix wrong process name in log and in kill notification
+    ([commit 1](https://github.com/rfjakob/earlyoom/commit/7634c5b66dd7e9b88c6ebf0496c8777f3c4b3cc1),
+    [commit 2](https://github.com/rfjakob/earlyoom/commit/15679a3b768ea2df9b13a7d9b0c1e30bd1a450e6),
+    [issue #52](https://github.com/rfjakob/earlyoom/issues/52),
+    [issue #65](https://github.com/rfjakob/earlyoom/issues/65),
+    [issue #194](https://github.com/rfjakob/earlyoom/issues/194))
   * Fix possible division by zero with `-S`
     ([commit](https://github.com/rfjakob/earlyoom/commit/a0c4b26dfef8b38ef81c7b0b907442f344a3e115))
 * v1.0, 2018-01-28

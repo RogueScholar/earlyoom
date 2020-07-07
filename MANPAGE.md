@@ -39,9 +39,7 @@ SIGKILL.
 Examples:
 
     earlyoom              # sets PERCENT=10, KILL_PERCENT=5
-
     earlyoom -m 30        # sets PERCENT=30, KILL_PERCENT=15
-
     earlyoom -m 20,18     # sets PERCENT=20, KILL_PERCENT=18
 
 #### -s PERCENT[,KILL_PERCENT]
@@ -62,7 +60,9 @@ As an alternative to specifying a percentage of total memory, `-M` sets the
 available memory minimum to SIZE KiB. The value is internally converted to a
 percentage. You can only use **either** `-m` **or** `-M`.
 
-Send SIGKILL if at or below KILL_SIZE (default SIZE/2), otherwise SIGTERM.
+    earlyoom -m 10 -M 1048576
+
+earlyoom sends SIGKILL if at or below KILL_SIZE (default SIZE/2), otherwise SIGTERM.
 
 #### -S SIZE[,KILL_SIZE]
 
@@ -108,6 +108,9 @@ prefer killing processes matching REGEX (adds 300 to oom_score)
 
 avoid killing processes matching REGEX (subtracts 300 from oom_score)
 
+#### \-\-dryrun
+dry run (do not kill any processes)
+
 #### -h, \-\-help
 
 this help text
@@ -116,7 +119,7 @@ this help text
 
 0: Successful program execution.
 
-1: Usage printed (using -h).
+1: Other error - inspect message for details
 
 2: Switch conflict.
 

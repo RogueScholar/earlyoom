@@ -2,6 +2,7 @@ package earlyoom_testsuite
 
 import (
 	"fmt"
+	"strings"
 )
 
 // #cgo CFLAGS: -std=gnu99 -DCGO
@@ -10,20 +11,14 @@ import (
 // #include "msg.h"
 import "C"
 
-func sanitize(s string) string {
-	cs := C.CString(s)
-	C.sanitize(cs)
-	return C.GoString(cs)
-}
-
-func parse_term_kill_tuple(optarg string, upper_limit int) (error, int, int) {
+func parse_term_kill_tuple(optarg string, upper_limit int) (error, float64, float64) {
 	cs := C.CString(optarg)
-	tuple := C.parse_term_kill_tuple(cs, C.long(upper_limit))
+	tuple := C.parse_term_kill_tuple(cs, C.longlong(upper_limit))
 	errmsg := C.GoString(&(tuple.err[0]))
 	if len(errmsg) > 0 {
 		return fmt.Errorf(errmsg), 0, 0
 	}
-	return nil, int(tuple.term), int(tuple.kill)
+	return nil, float64(tuple.term), float64(tuple.kill)
 }
 
 func is_alive(pid int) bool {
@@ -37,16 +32,32 @@ func fix_truncated_utf8(str string) string {
 	return C.GoString(cstr)
 }
 
-// getRss returns the RSS of process `pid` in kiB.
-func getRss(pid int) uint64 {
-	st := get_process_stats(pid)
-	return uint64(st.VmRSSkiB)
-}
-
-func get_process_stats(pid int) C.struct_procinfo {
-	return C.get_process_stats(C.int(pid))
-}
-
 func parse_meminfo() C.meminfo_t {
 	return C.parse_meminfo()
+}
+
+func kill_largest_process() {
+	var args C.poll_loop_args_t
+	C.kill_largest_process(&args, 0)
+}
+
+func get_oom_score(pid int) int {
+	return int(C.get_oom_score(C.int(pid)))
+}
+
+func get_oom_score_adj(pid int, out *int) int {
+	var out2 C.int
+	res := C.get_oom_score_adj(C.int(pid), &out2)
+	*out = int(out2)
+	return int(res)
+}
+
+func get_vm_rss_kib(pid int) int {
+	return int(C.get_vm_rss_kib(C.int(pid)))
+}
+
+func get_comm(pid int) (int, string) {
+	cstr := C.CString(strings.Repeat("\000", 256))
+	res := C.get_comm(C.int(pid), cstr, 256)
+	return int(res), C.GoString(cstr)
 }

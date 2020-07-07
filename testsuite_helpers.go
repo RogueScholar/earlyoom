@@ -3,6 +3,7 @@ package earlyoom_testsuite
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -12,10 +13,14 @@ import (
 )
 
 type exitVals struct {
-	code   int
 	stdout string
 	stderr string
-	rss    uint64
+	// Exit code
+	code int
+	// RSS in kiB
+	rss int
+	// Number of file descriptors
+	fds int
 }
 
 const earlyoomBinary = "./earlyoom"
@@ -24,7 +29,8 @@ const earlyoomBinary = "./earlyoom"
 //   mem avail: 4998 MiB (63 %), swap free: 0 MiB (0 %)
 const memReport = "mem avail: "
 
-// runEarlyoom runs earlyoom with a timeout
+// runEarlyoom runs earlyoom, waits for the first "mem avail:" status line,
+// and kills it.
 func runEarlyoom(t *testing.T, args ...string) exitVals {
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd := exec.Command(earlyoomBinary, args...)
@@ -66,12 +72,15 @@ func runEarlyoom(t *testing.T, args ...string) exitVals {
 	for stdoutScanner.Scan() {
 		line := stdoutScanner.Bytes()
 		stdoutBuf.Write(line)
+		// Scanner strips the newline, add it back
+		stdoutBuf.Write([]byte{'\n'})
 		if bytes.HasPrefix(line, []byte(memReport)) {
 			break
 		}
 	}
 	timer.Stop()
-	rss := getRss(cmd.Process.Pid)
+	rss := get_vm_rss_kib(cmd.Process.Pid)
+	fds := countFds(cmd.Process.Pid)
 	cmd.Process.Kill()
 	err = cmd.Wait()
 
@@ -80,7 +89,23 @@ func runEarlyoom(t *testing.T, args ...string) exitVals {
 		stdout: string(stdoutBuf.Bytes()),
 		stderr: string(stderrBuf.Bytes()),
 		rss:    rss,
+		fds:    fds,
 	}
+}
+
+func countFds(pid int) int {
+	dir := fmt.Sprintf("/proc/%d/fd", pid)
+	f, err := os.Open(dir)
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
+	// Note: Readdirnames filters "." and ".."
+	names, err := f.Readdirnames(0)
+	if err != nil {
+		return -1
+	}
+	return len(names)
 }
 
 // extractCmdExitCode extracts the exit code from an error value that was
