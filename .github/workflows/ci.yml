@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 23 * * 5' # Every Friday at 23:00
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    # Looks like Github Actions leaks fds to child processes
+    # https://github.com/actions/runner/issues/1188
+    - run: ls -l /proc/self/fd
+
+# Build and test in Ubuntu VM provided by Github CI
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0 # Make "git describe" work
+    - run: sudo apt-get install -qq pandoc cppcheck
+    - run: make
+    - run: make test
+    - run: git clean -dxff
+
+# And also build in a number of docker containers of older
+# distributions
+    - name: Build and test in Amazon Linux 2
+      uses: maus007/docker-run-action-fork@207a4e2a8ebf7e4b985656ba990b1e53715dce2a
+      with:
+        image: amazonlinux:2
+        options: -v ${{ github.workspace }}:/work
+        run: |
+          set -ex
+          yum -y -q install make gcc golang git
+          cd /work
+          git config --global --add safe.directory /work # Fix for: fatal: detected dubious ownership in repository at '/work'
+          make
+          make test
+    - run: git clean -dxff
+
+    - name: Build in Oracle Linux 7 (similar to RHEL 7, CentOS 7)
+      uses: maus007/docker-run-action-fork@207a4e2a8ebf7e4b985656ba990b1e53715dce2a
+      with:
+        image: oraclelinux:7
+        options: -v ${{ github.workspace }}:/work
+        run: |
+          set -ex
+          yum -y -q install make gcc git
+          cd /work
+          make
+    - run: git clean -dxff
+
+    - name: Build in Oracle Linux 8 (similar to RHEL 8, CentOS 8)
+      uses: maus007/docker-run-action-fork@207a4e2a8ebf7e4b985656ba990b1e53715dce2a
+      with:
+        image: oraclelinux:8
+        options: -v ${{ github.workspace }}:/work
+        run: |
+          set -ex
+          dnf -y -q install make gcc git
+          cd /work
+          make
+    - run: git clean -dxff

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
-	"os/exec"
-	"regexp"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ type cliTestCase struct {
 	stderrEmpty bool
 }
 
-func paseMeminfoLine(l string) int64 {
+func parseMeminfoLine(l string) int64 {
 	fields := strings.Split(l, " ")
 	asciiVal := fields[len(fields)-2]
 	val, err := strconv.ParseInt(asciiVal, 10, 64)
@@ -52,17 +51,20 @@ func parseMeminfo() (memTotal int64, swapTotal int64) {
 	lines := strings.Split(string(content), "\n")
 	for _, l := range lines {
 		if strings.HasPrefix(l, "MemTotal:") {
-			memTotal = paseMeminfoLine(l)
+			memTotal = parseMeminfoLine(l)
 		}
 		if strings.HasPrefix(l, "SwapTotal:") {
-			swapTotal = paseMeminfoLine(l)
+			swapTotal = parseMeminfoLine(l)
 		}
 	}
 	return
 }
 
-// earlyoom RSS should never be above 1 MiB
-const rssMax = 1024
+// earlyoom RSS should never be above 1 MiB,
+// but on some systems, it is (due to glibc?).
+// https://github.com/rfjakob/earlyoom/issues/221
+// https://github.com/rfjakob/earlyoom/issues/296
+const rssMaxKiB = 4096
 
 func TestCli(t *testing.T) {
 	memTotal, swapTotal := parseMeminfo()
@@ -100,19 +102,21 @@ func TestCli(t *testing.T) {
 		// We use {"-r=0"} instead of {"-r", "0"} so runEarlyoom() can detect that there will be no output
 		{args: []string{"-r=0"}, code: -1, stderrContains: startupMsg, stdoutEmpty: true},
 		{args: []string{"-r", "0.1"}, code: -1, stderrContains: startupMsg, stdoutContains: memReport},
-		// Test --avoid and --prefer
+		// Test --avoid, --prefer, --ignore-root-user and --sort-by-rss
 		{args: []string{"--avoid", "MyProcess1"}, code: -1, stderrContains: "Will avoid killing", stdoutContains: memReport},
 		{args: []string{"--prefer", "MyProcess2"}, code: -1, stderrContains: "Preferring to kill", stdoutContains: memReport},
-		{args: []string{"-i"}, code: -1, stderrContains: "Ignoring positive oom_score_adj values"},
+		{args: []string{"--ignore-root-user"}, code: -1, stderrContains: "Processes owned by root will not be killed", stdoutContains: memReport},
+		{args: []string{"--sort-by-rss"}, code: -1, stderrContains: "Find process with the largest rss", stdoutContains: memReport},
+		{args: []string{"-i"}, code: -1, stderrContains: "Option -i is ignored"},
 		// Extra arguments should error out
 		{args: []string{"xyz"}, code: 13, stderrContains: "extra argument not understood", stdoutEmpty: true},
 		{args: []string{"-i", "1"}, code: 13, stderrContains: "extra argument not understood", stdoutEmpty: true},
 		// Tuples
-		{args: []string{"-m", "2,1"}, code: -1, stderrContains: "sending SIGTERM when mem <=  2.00% and swap <= 10.00%", stdoutContains: memReport},
+		{args: []string{"-m", "2,1"}, code: -1, stderrContains: "sending SIGTERM when mem avail <=  2.00% and swap free <= 10.00%", stdoutContains: memReport},
 		{args: []string{"-m", "1,2"}, code: -1, stdoutContains: memReport},
 		{args: []string{"-m", "1,-1"}, code: 15, stderrContains: "fatal", stdoutEmpty: true},
 		{args: []string{"-m", "1000,-1000"}, code: 15, stderrContains: "fatal", stdoutEmpty: true},
-		{args: []string{"-s", "2,1"}, code: -1, stderrContains: "sending SIGTERM when mem <= 10.00% and swap <=  2.00%", stdoutContains: memReport},
+		{args: []string{"-s", "2,1"}, code: -1, stderrContains: "sending SIGTERM when mem avail <= 10.00% and swap free <=  2.00%", stdoutContains: memReport},
 		{args: []string{"-s", "1,2"}, code: -1, stdoutContains: memReport},
 		// https://github.com/rfjakob/earlyoom/issues/97
 		{args: []string{"-m", "5,0"}, code: -1, stdoutContains: memReport},
@@ -131,18 +135,21 @@ func TestCli(t *testing.T) {
 		{args: []string{"-s", tooBigInt32}, code: 16, stderrContains: "fatal", stdoutEmpty: true},
 		{args: []string{"-s", tooBigUint32}, code: 16, stderrContains: "fatal", stdoutEmpty: true},
 		// Floating point values
-		{args: []string{"-m", "3.14"}, code: -1, stderrContains: "SIGTERM when mem <=  3.14%", stdoutContains: memReport},
-		{args: []string{"-m", "7,3.14"}, code: -1, stderrContains: "SIGKILL when mem <=  3.14%", stdoutContains: memReport},
-		{args: []string{"-s", "12.34"}, code: -1, stderrContains: "swap <= 12.34%", stdoutContains: memReport},
+		{args: []string{"-m", "3.14"}, code: -1, stderrContains: "SIGTERM when mem avail <=  3.14%", stdoutContains: memReport},
+		{args: []string{"-m", "7,3.14"}, code: -1, stderrContains: "SIGKILL when mem avail <=  3.14%", stdoutContains: memReport},
+		{args: []string{"-s", "12.34"}, code: -1, stderrContains: "swap free <= 12.34%", stdoutContains: memReport},
 		// Use both -m/-M
-		{args: []string{"-m", "10", "-M", mem1percent}, code: -1, stderrContains: "SIGTERM when mem <=  1.00%", stdoutContains: memReport},
+		{args: []string{"-m", "10", "-M", mem1percent}, code: -1, stderrContains: "SIGTERM when mem avail <=  1.00%", stdoutContains: memReport},
+		// Test --use-kernel-oom option
+		{args: []string{"--kernel-oom"}, code: -1, stderrContains: "Using kernel OOM killer", stdoutContains: memReport},
+		{args: []string{"--kernel-oom", "--dryrun"}, code: -1, stderrContains: "dryrun", stdoutContains: memReport},
 	}
 	if swapTotal > 0 {
 		// Tests that cannot work when there is no swap enabled
 		tc := []cliTestCase{
 			{args: []string{"-S", swap2percent}, code: -1, stderrContains: " 2.00%", stdoutContains: memReport},
 			// Use both -s/-S
-			{args: []string{"-s", "10", "-S", swap2percent}, code: -1, stderrContains: "swap <=  1.00%", stdoutContains: memReport},
+			{args: []string{"-s", "10", "-S", swap2percent}, code: -1, stderrContains: "swap free <=  1.00%", stdoutContains: memReport},
 		}
 		testcases = append(testcases, tc...)
 	}
@@ -172,22 +179,16 @@ func TestCli(t *testing.T) {
 				t.Errorf("stderr should contain %q, but does not", tc.stderrContains)
 				pass = false
 			}
-			if res.rss > rssMax {
-				t.Errorf("Memory usage too high! actual rss: %d, rssMax: %d", res.rss, rssMax)
+			if res.rss > rssMaxKiB {
+				t.Errorf("Memory usage too high! actual rss: %d, rssMax: %d", res.rss, rssMaxKiB)
 				pass = false
 			}
-			/*
-				$ ls -l /proc/42277/fd
-				total 0
-				lrwx------. 1 jakob jakob 64 Feb 22 14:36 0 -> /dev/pts/2
-				lrwx------. 1 jakob jakob 64 Feb 22 14:36 1 -> /dev/pts/2
-				lrwx------. 1 jakob jakob 64 Feb 22 14:36 2 -> /dev/pts/2
-				lr-x------. 1 jakob jakob 64 Feb 22 14:36 3 -> /proc/meminfo
-
-				Plus one for /proc/[pid]/stat which may possibly be open as well
-			*/
-			if res.fds > 5 {
-				t.Fatalf("High number of open file descriptors: %d", res.fds)
+			if res.fds > openFdsMax {
+				if os.Getenv("GITHUB_ACTIONS") == "true" {
+					t.Log("Ignoring fd leak. Github Actions bug? See https://github.com/actions/runner/issues/1188")
+				} else {
+					t.Fatalf("High number of open file descriptors: %d", res.fds)
+				}
 			}
 			if !pass {
 				const empty = "(empty)"
@@ -209,52 +210,8 @@ func TestRss(t *testing.T) {
 	if res.rss == 0 {
 		t.Error("rss is zero!?")
 	}
-	if res.rss > rssMax {
-		t.Error("rss above 1 MiB")
+	if res.rss > rssMaxKiB {
+		t.Errorf("rss above %d kiB", rssMaxKiB)
 	}
 	t.Logf("earlyoom RSS: %d kiB", res.rss)
-}
-
-// TestI tests that `earlyoom -i` works as expected
-func TestI(t *testing.T) {
-	cmd := exec.Command("sleep", "60")
-	err := cmd.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cmd.Process.Kill()
-	path := fmt.Sprintf("/proc/%d/oom_score_adj", cmd.Process.Pid)
-	err = ioutil.WriteFile(path, []byte("1000"), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := runEarlyoom(t, "-d")
-	// We should see a line like this:
-	//   pid 2308155: badness 1000 vm_rss     708 uid 1026 "sleep" <--- new victim
-	// Or, for some reason, this:
-	//   pid  6950: badness 999 vm_rss     772 uid 1026 "sleep" <--- new victim
-	matched := false
-	for _, b := range []int{1000, 999} {
-		pattern := fmt.Sprintf(`pid\s+%d: badness %d`, cmd.Process.Pid, b)
-		matched, err = regexp.MatchString(pattern, res.stdout)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if matched {
-			break
-		}
-	}
-	if !matched {
-		t.Error("did not see badness 1000 or 999 in output")
-		t.Log(res.stdout)
-	}
-	res = runEarlyoom(t, "-d", "-i")
-	pattern := fmt.Sprintf(`pid\s+%d: badness %d`, cmd.Process.Pid, 1000)
-	matched, err = regexp.MatchString(pattern, res.stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if matched {
-		t.Error("saw badness 1000, but should not have")
-	}
 }
